@@ -125,7 +125,8 @@ return {
           "lua_ls",
           "omnisharp_mono",
           "basedpyright",
-          "tsserver"
+          "tsserver",
+          "gopls"
         },
         handlers = {
           lsp_zero.default_setup,

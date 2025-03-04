@@ -1,146 +1,161 @@
 return {
-  {
-    "j-hui/fidget.nvim",
-    config = function()
-      require("fidget").setup()
-    end,
-  },
-  {
-    "VonHeikemen/lsp-zero.nvim",
-    branch = "v3.x",
-    lazy = true,
-    config = false,
-    init = function()
-      -- Disable automatic setup, we are doing it manually
-      vim.g.lsp_zero_extend_cmp = 0
-      vim.g.lsp_zero_extend_lspconfig = 0
-    end,
-  },
-  {
-    "williamboman/mason.nvim",
-    lazy = false,
-    config = true,
-  },
-  -- Autocompletion
-  {
-    "hrsh7th/nvim-cmp",
-    event = "InsertEnter",
-    dependencies = {
-      { "L3MON4D3/LuaSnip" },
-      { "hrsh7th/cmp-buffer" },
-      { "hrsh7th/cmp-path" },
-      { "hrsh7th/cmp-nvim-lsp-signature-help" },
-      { "saadparwaiz1/cmp_luasnip" },
-    },
-    config = function()
-      -- Here is where you configure the autocompletion settings.
-      local lsp_zero = require("lsp-zero")
-      lsp_zero.extend_cmp()
+	{
+		"williamboman/mason.nvim",
+		-- event = "VeryLazy",
+		lazy = true,
+		config = function()
+			require('mason').setup()
+		end
+	},
+	{
+		"williamboman/mason-lspconfig.nvim",
+		-- event = "VeryLazy",
+		lazy = true,
+		dependencies = {
+			"williamboman/mason.nvim"
+		},
+		opts = {
+			auto_install = true,
+		},
+		config = function()
+			require('mason-lspconfig').setup({
+				ensure_installed = { "lua_ls", "omnisharp" }
+			})
+		end
+	},
+	{
+		"neovim/nvim-lspconfig",
+		event = { "BufReadPre", "BufNewFile" },
+		-- event = "VeryLazy",
+		-- lazy = true,
+		dependencies = {
+			"williamboman/mason.nvim",
+			"williamboman/mason-lspconfig.nvim",
+		},
+		config = function()
+			local capabilities = require('cmp_nvim_lsp').default_capabilities()
+			local lspconfig = require('lspconfig')
 
-      -- And you can configure cmp even more, if you want to.
-      local cmp = require("cmp")
-      local cmp_action = lsp_zero.cmp_action()
+			lspconfig.lua_ls.setup({
+				capabilities = capabilities
+			})
 
-      cmp.setup({
-        snippet = {
-          expand = function(args)
-            require("luasnip").lsp_expand(args.body)
-          end,
-        },
-        sources = {
-          { name = "path" },
-          { name = "nvim_lsp" },
-          { name = "nvim_lua" },
-          { name = "luasnip" },
-          { name = "buffer" },
-          { name = "nvim_lsp_signature_help" },
-        },
-        window = {
-          completion = cmp.config.window.bordered(),
-          documentation = cmp.config.window.bordered(),
-        },
-        formatting = lsp_zero.cmp_format(),
-        mapping = cmp.mapping.preset.insert({
-          ["<Tab>"] = cmp_action.luasnip_supertab(),
-          ["<S-Tab>"] = cmp_action.luasnip_shift_supertab(),
-          ["<CR>"] = cmp.mapping.confirm({ select = true }),
-          ["<C-u>"] = cmp.mapping.scroll_docs(-4),
-          ["<C-d>"] = cmp.mapping.scroll_docs(4),
-        }),
-        preselect = "item",
-        completion = {
-          completeopt = "menu,menuone,noinsert",
-        },
-      })
-      require("luasnip.loaders.from_vscode").load({ paths = { "~/.config/snippets" } })
-    end,
-  },
-  -- LSP
-  {
-    "neovim/nvim-lspconfig",
-    cmd = { "LspInfo", "LspInstall", "LspStart" },
-    event = { "BufReadPre", "BufNewFile" },
-    dependencies = {
-      { "hrsh7th/cmp-nvim-lsp" },
-      { "williamboman/mason-lspconfig.nvim" },
-    },
-    config = function()
-      -- This is where all the LSP shenanigans will live
-      local lsp_zero = require("lsp-zero")
+			lspconfig.omnisharp.setup({
+				capabilities = capabilities,
+				enable_roslyn_analysers = true,
+				enable_import_completion = true,
+				organize_imports_on_format = true,
+				enable_decompilation_support = true,
+				filetypes = { 'cs', 'vb', 'csproj', 'sln', 'slnx', 'props', 'csx', 'targets' }
+			})
 
-      local lsp_attach = function(client, bufnr)
-        local opts = { buffer = bufnr }
+			lspconfig.powershell_es.setup({
+				capabilities = capabilities,
+				bundle_path = vim.fn.stdpath("data") .. "/mason/packages/powershell-editor-services",
+				init_options = {
+					enableProfileLoading = false,
+				}
+			})
 
-        vim.keymap.set('n', 'K', '<cmd>lua vim.lsp.buf.hover()<cr>', opts)
-        vim.keymap.set('n', 'gd', '<cmd>lua vim.lsp.buf.definition()<cr>', opts)
-        vim.keymap.set('n', 'gD', '<cmd>lua vim.lsp.buf.declaration()<cr>', opts)
-        vim.keymap.set('n', 'gi', '<cmd>lua vim.lsp.buf.implementation()<cr>', opts)
-        vim.keymap.set('n', 'go', '<cmd>lua vim.lsp.buf.type_definition()<cr>', opts)
-        vim.keymap.set('n', 'gr', '<cmd>lua vim.lsp.buf.references()<cr>', opts)
-        vim.keymap.set('n', 'gs', '<cmd>lua vim.lsp.buf.signature_help()<cr>', opts)
-        vim.keymap.set('n', '<F2>', '<cmd>lua vim.lsp.buf.rename()<cr>', opts)
-        vim.keymap.set({ 'n', 'x' }, '<F3>', '<cmd>lua vim.lsp.buf.format({async = true})<cr>', opts)
-        vim.keymap.set('n', '<F4>', '<cmd>lua vim.lsp.buf.code_action()<cr>', opts)
-      end
+			lspconfig.pylsp.setup({
+				capabilities = capabilities,
+			})
 
-      lsp_zero.extend_lspconfig({
-        sign_text = true,
-        lsp_attach = lsp_attach,
-        capabilities = require('cmp_nvim_lsp').default_capabilities()
-      })
+			lspconfig.yamlls.setup({
+				capabilities = capabilities
+			})
 
-      lsp_zero.set_server_config({
-        capabilities = {
-          textDocument = {
-            foldingRange = {
-              dynamicRegistration = false,
-              lineFoldingOnly = true,
-            },
-          },
-        },
-      })
+			lspconfig.buf_ls.setup({
+				capabilities = capabilities
+			})
 
-      require("mason-lspconfig").setup({
-        ensure_installed = {
-          "lua_ls",
-          "omnisharp_mono",
-          "basedpyright",
-          "tsserver",
-          "gopls"
-        },
-        handlers = {
-          lsp_zero.default_setup,
-          lua_ls = function()
-            local lua_opts = lsp_zero.nvim_lua_ls()
-            local lspconfig = require("lspconfig")
+			lspconfig.bicep.setup({
+				capabilities = capabilities
+			})
 
-            lspconfig.lua_ls.setup(lua_opts)
-            lspconfig.omnisharp_mono.setup()
-            lspconfig.basedpyright.setup()
-            lspconfig.tsserver.setup()
-          end,
-        },
-      })
-    end,
-  },
+			lspconfig.lemminx.setup({
+				capabilities = capabilities
+			})
+
+			lspconfig.pylsp.setup({
+				capabilities = capabilities
+			})
+
+			-- lspconfig.codeql.setup({
+			-- 	capabilities = capabilities
+			-- })
+
+			vim.keymap.set('n', 'K', vim.lsp.buf.hover, {})
+			vim.keymap.set('n', 'gd', vim.lsp.buf.definition, {})
+			-- vim.keymap.set({ 'n', 'v' }, '<leader>la', vim.lsp.buf.code_action, {})
+		end
+	},
+	{
+		'nvimtools/none-ls.nvim',
+		-- event = { "BufReadPre", "BufNewFile" },
+		lazy = true,
+		-- event = "VeryLazy",
+		config = function()
+			local null_ls = require('null-ls')
+			null_ls.setup({
+				sources = {
+					-- null_ls.builtins.formatting.stylua,
+					null_ls.builtins.formatting.csharpier,
+					null_ls.builtins.formatting.yamlfmt,
+					null_ls.builtins.formatting.black,
+					null_ls.builtins.formatting.isort,
+				}
+			})
+			vim.keymap.set('n', '<leader>lff', function() vim.lsp.buf.format({ async = true }) end,
+				{ desc = "Format document" })
+			vim.keymap.set('n', '<leader>lr', vim.lsp.buf.rename, { desc = "Rename Symbol" })
+			vim.keymap.set({ 'n', 'i' }, '<f2>', vim.lsp.buf.rename, { desc = "Rename Symbol" })
+			vim.keymap.set({ 'n', 'i' }, '<f12>', vim.lsp.buf.definition, { desc = "Go to Definition" })
+			vim.keymap.set({ 'n' }, '<leader>ld', vim.lsp.buf.definition, { desc = "Go to Definition" })
+			vim.keymap.set('n', '<leader>li', vim.lsp.buf.implementation, { desc = "Go to Implementation" })
+			vim.keymap.set('n', '<leader>lh', vim.lsp.buf.signature_help, { desc = "Signature Help" })
+			vim.keymap.set('n', '<leader>lsR', vim.lsp.buf.references, { desc = "To to References" })
+			-- vim.keymap.set({ 'n' }, '<leader>lsD', ":Trouble document_diagnostics<CR>", { desc = "Toggle Document Diagnostics" })
+			vim.keymap.set({ 'n' }, '<leader>lsD', ":Trouble diagnostics<CR>", { desc = "Toggle Document Diagnostics" })
+			vim.keymap.set('n', '<leader>lsI', ':Trouble lsp_implementations<CR>',
+				{ desc = "Toggle LSP References" })
+			vim.keymap.set('n', '<leader>lsd', ":Trouble lsp_definitions<CR>", { desc = "Toggle LSP Definitions" })
+		end
+	},
+	{
+		"jay-babu/mason-null-ls.nvim",
+		event = { "BufReadPre", "BufNewFile" },
+		-- event = { 'VeryLazy' },
+		-- enabled = false,
+		dependencies = {
+			"williamboman/mason.nvim",
+			"nvimtools/none-ls.nvim",
+			-- "neovim/nvim-lspconfig"
+		},
+		config = function()
+			require('mason-null-ls').setup({
+				automatic_setup = true
+			})
+		end,
+	},
+	{
+		'https://git.sr.ht/~whynothugo/lsp_lines.nvim',
+		event = "VeryLazy",
+		config = function()
+			require('lsp_lines').setup()
+
+			vim.diagnostic.config({
+				virtual_lines = false,
+				virtual_text = true,
+			})
+
+			local function toggleLines()
+				local new_value = not vim.diagnostic.config().virtual_lines
+				vim.diagnostic.config({ virtual_lines = new_value, virtual_text = not new_value })
+				return new_value
+			end
+
+			vim.keymap.set('n', '<leader>lu', toggleLines, { desc = "Toggle Underline Diagnostics", silent = true })
+		end
+	},
 }
